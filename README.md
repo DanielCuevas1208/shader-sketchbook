@@ -7,17 +7,28 @@ It shows shader math as a live, adjustable image. It also captures the same scen
 ## Value
 
 - Explore smooth unions, repetition, ray marching, normals, lighting, and tone mapping.
+- Browse three named GLSL lessons from the demo with keyboard navigation.
 - Edit GLSL while the demo runs. The renderer keeps the last valid program after a failed reload.
 - Compare a committed PPM capture during every test run.
 - Build with CMake and the platform OpenGL library. No runtime package or secret is required.
 
-## Release 0.1
+## Release 0.2
 
-The first release renders one configurable SDF scene.
+This release adds a keyboard-driven shader exercise browser.
 
-The scene combines a sphere, a box, repeated satellites, and a tiled ground plane.
+Each lesson has a name, summary, learning focus, and fragment shader path.
 
-The window title reports live parameters and shader status.
+The renderer switches lessons without restarting the window.
+
+The default lesson combines a sphere, a box, repeated satellites, and a tiled ground plane.
+
+The window title reports the active lesson, live parameters, and shader status.
+
+| Lesson | Focus |
+| --- | --- |
+| SDF Fusion | Smooth unions and distance fields |
+| Normals and Lighting | Finite differences and responsive shading |
+| Space Repetition | Modulo repetition and field composition |
 
 ## Architecture
 
@@ -31,17 +42,24 @@ Portable SDF core
     -> signed-distance queries
     -> CPU reference renderer
     -> PPM comparison fixture
+
+Lesson catalog
+    -> named lesson metadata
+    -> wrapped keyboard navigation
+    -> fragment shader selection
 ```
 
 | Area | Location | Responsibility |
 | --- | --- | --- |
 | Scene model | `include/shader_sketchbook/sdf_scene.hpp` | Public settings and SDF operations |
+| Lesson catalog | `include/shader_sketchbook/lesson_catalog.hpp` | Lesson metadata and navigation |
 | Reference render | `src/core/sdf_scene.cpp` | Deterministic CPU ray marcher |
 | Image utility | `src/core/image.cpp` | PPM load, save, and error measurement |
 | Native host | `src/demo/native_window.cpp` | Win32 window and keyboard input |
 | GPU host | `src/demo/opengl_renderer.cpp` | WGL context, uniforms, and presentation |
 | Shader reload | `src/demo/shader_program.cpp` | Compile, link, watch, and preserve GLSL programs |
 | GLSL scene | `shaders/scene.frag` | GPU SDF scene and lighting |
+| Lesson shaders | `shaders/lessons/` | Focused GLSL exercises for normals and repetition |
 | Fixtures | `tests/fixtures/` | Committed visual regression capture |
 
 ## Setup
@@ -72,6 +90,8 @@ Non-Windows builds provide the portable tests and a short platform notice.
 | `E` / `Q` | Lower or raise repeat spacing |
 | `Z` / `X` | Lower or raise light energy |
 | `R` | Force shader reload |
+| `N` / `P` or arrow keys | Next or previous GLSL lesson |
+| `1` / `2` / `3` | Open a lesson directly |
 | `Space` | Pause or resume animation |
 | `Esc` | Close the demo |
 
@@ -83,6 +103,8 @@ The demo detects the file timestamp and reloads the program on the next frame.
 
 ```text
 sdf_core: PASS
+lesson_catalog: PASS
+lessons: 3
 default_checksum: 5669664343924647534
 reference_image: PASS
 checksum: 5669664343924647534
@@ -96,28 +118,31 @@ The fixture test fails when the render exceeds its cross-platform tolerance.
 
 `sketchbook_sdf_tests` checks field values, dimensions, checksums, and parameter sensitivity.
 
+`sketchbook_lesson_tests` checks lesson metadata, lookup, and wrapped navigation.
+
 `sketchbook_reference_tests` compares the default render with `tests/fixtures/sdf_scene_reference.ppm`.
 
 Run all registered tests with `ctest --test-dir build-vs -C Release --output-on-failure`.
 
-CI builds on Windows and Ubuntu.
+CI builds and tests the project on Windows and Ubuntu.
 
-Current status: two deterministic tests pass locally with Visual Studio 2019 and CMake 4.3.1.
+Current status: three deterministic tests pass locally after a Release build.
 
 ## Limitations
 
 - The interactive host currently uses Win32 and WGL.
 - The reference image checks the CPU renderer, not a GPU framebuffer.
 - The demo uses a compatibility OpenGL context for wide driver support.
+- Lessons share the demo uniform set, but each lesson uses only the controls it needs.
 - Shader reload watches file timestamps, so some editors need a saved file before reload.
 - The reference capture uses a small image for fast CI feedback.
 
 ## Roadmap
 
-- 0.2: Add a shader exercise browser with named GLSL lessons.
-- 0.3: Add framebuffer capture and GPU image comparison.
-- 0.4: Add camera orbit controls and signed-distance 2D sketches.
-- 0.5: Add a cross-platform window layer with an optional tested backend.
+- [x] 0.2: Add three named GLSL lessons with keyboard navigation and deterministic catalog tests.
+- [ ] 0.3: Add framebuffer capture and GPU image comparison.
+- [ ] 0.4: Add camera orbit controls and signed-distance 2D sketches.
+- [ ] 0.5: Add a cross-platform window layer with an optional tested backend.
 
 ## License
 

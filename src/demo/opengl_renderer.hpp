@@ -15,6 +15,7 @@ public:
     ~OpenGLRenderer();
 
     bool initialize(HWND window, const std::filesystem::path& shader_directory);
+    bool load_fragment_shader(const std::filesystem::path& fragment_path);
     void shutdown() noexcept;
     void resize(int width, int height) noexcept;
     void render(const SceneSettings& settings, float time_seconds);

@@ -1,10 +1,12 @@
 ﻿#include "native_window.hpp"
 #include "opengl_renderer.hpp"
 
+#include "shader_sketchbook/lesson_catalog.hpp"
 #include "shader_sketchbook/sdf_scene.hpp"
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
@@ -17,10 +19,12 @@
 
 namespace {
 
-std::string make_title(const shader_sketchbook::SceneSettings& settings, bool paused, const std::string& renderer_status) {
+std::string make_title(const shader_sketchbook::SceneSettings& settings, bool paused, std::size_t lesson_index,
+                       const shader_sketchbook::ShaderLesson& lesson, const std::string& renderer_status) {
     std::ostringstream title;
     title << std::fixed << std::setprecision(2)
-          << "Shader Sketchbook  |  blend " << settings.shape_blend
+          << "Shader Sketchbook  |  lesson " << (lesson_index + 1) << "/" << shader_sketchbook::lesson_count()
+          << "  " << lesson.title << "  |  blend " << settings.shape_blend
           << "  radius " << settings.sphere_radius
           << "  repeat " << settings.repeat
           << "  light " << settings.light_energy;
@@ -51,6 +55,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
     SceneSettings settings{};
     bool paused = false;
+    std::size_t active_lesson = 0;
+    const std::filesystem::path shader_directory(SKETCHBOOK_SHADER_DIR);
+
+    auto select_lesson = [&](std::size_t index) {
+        const std::size_t candidate_index = index % lesson_count();
+        const ShaderLesson& candidate = lesson_at(candidate_index);
+        if (renderer.load_fragment_shader(shader_directory / candidate.fragment_file)) {
+            active_lesson = candidate_index;
+        }
+    };
+
     window.set_key_handler([&](unsigned int key) {
         switch (key) {
         case 'A': settings.shape_blend = std::max(0.0F, settings.shape_blend - 0.03F); break;
@@ -61,6 +76,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         case 'E': settings.repeat = std::max(0.80F, settings.repeat - 0.10F); break;
         case 'Z': settings.light_energy = std::max(0.0F, settings.light_energy - 0.05F); break;
         case 'X': settings.light_energy = std::min(2.5F, settings.light_energy + 0.05F); break;
+        case 'N': select_lesson(next_lesson(active_lesson, 1)); break;
+        case 'P': select_lesson(next_lesson(active_lesson, -1)); break;
+        case VK_RIGHT: select_lesson(next_lesson(active_lesson, 1)); break;
+        case VK_LEFT: select_lesson(next_lesson(active_lesson, -1)); break;
+        case '1': select_lesson(0); break;
+        case '2': select_lesson(1); break;
+        case '3': select_lesson(2); break;
         case 'R': renderer.reload_shaders(); break;
         case VK_SPACE: paused = !paused; break;
         case VK_ESCAPE: window.close(); break;
@@ -78,7 +100,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         renderer.render(settings, paused ? 0.0F : elapsed);
         renderer.present();
         if (now - last_title > std::chrono::milliseconds(250)) {
-            window.set_title(make_title(settings, paused, renderer.status()));
+            window.set_title(make_title(settings, paused, active_lesson, lesson_at(active_lesson), renderer.status()));
             last_title = now;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));

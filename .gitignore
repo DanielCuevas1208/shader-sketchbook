@@ -32,3 +32,4 @@ coverage/
 *.gcov
 
 build-vs/
+build-*/

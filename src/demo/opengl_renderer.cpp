@@ -53,13 +53,20 @@ bool OpenGLRenderer::initialize(HWND window, const std::filesystem::path& shader
     glClearColor(0.015F, 0.02F, 0.05F, 1.0F);
     resize(1, 1);
 
-    const bool loaded = shaders_.load(shader_directory_ / "scene.vert", shader_directory_ / "scene.frag");
-    if (!loaded) {
-        status_ = shaders_.last_error();
+    if (!load_fragment_shader(shader_directory_ / "scene.frag")) {
         return false;
     }
-    status_ = "live shader";
     return true;
+}
+
+bool OpenGLRenderer::load_fragment_shader(const std::filesystem::path& fragment_path) {
+    if (context_ == nullptr) {
+        status_ = "OpenGL context is unavailable";
+        return false;
+    }
+    const bool loaded = shaders_.load(shader_directory_ / "scene.vert", fragment_path);
+    status_ = loaded ? "live shader" : shaders_.last_error();
+    return loaded;
 }
 
 void OpenGLRenderer::shutdown() noexcept {
