@@ -1,13 +1,15 @@
 ﻿# Shader Sketchbook
 
-Shader Sketchbook is a compact C++ and OpenGL playground for signed-distance-field scenes.
+Shader Sketchbook is a small C++ and OpenGL project for signed-distance field
+scenes.
 
-It shows shader math as a live, adjustable image. It also captures the same scene with a deterministic CPU renderer.
+It shows shader math as a live image. It also captures the same scene with a
+deterministic CPU renderer.
 
-## Value
+## Features
 
 - Explore smooth unions, repetition, ray marching, normals, lighting, and tone mapping.
-- Edit GLSL while the demo runs. The renderer keeps the last valid program after a failed reload.
+- Edit GLSL while the demo runs. The renderer keeps the last valid program if a reload fails.
 - Compare a committed PPM capture during every test run.
 - Build with CMake and the platform OpenGL library. No runtime package or secret is required.
 
