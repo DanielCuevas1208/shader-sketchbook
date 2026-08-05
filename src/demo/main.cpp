@@ -1,6 +1,7 @@
 ﻿#include "native_window.hpp"
 #include "opengl_renderer.hpp"
 
+#include "shader_sketchbook/lesson_catalog.hpp"
 #include "shader_sketchbook/sdf_scene.hpp"
 
 #include <algorithm>
@@ -17,10 +18,15 @@
 
 namespace {
 
-std::string make_title(const shader_sketchbook::SceneSettings& settings, bool paused, const std::string& renderer_status) {
+std::string make_title(const shader_sketchbook::SceneSettings& settings,
+                       const shader_sketchbook::LessonInfo& lesson,
+                       std::size_t lesson_index,
+                       bool paused,
+                       const std::string& renderer_status) {
     std::ostringstream title;
-    title << std::fixed << std::setprecision(2)
-          << "Shader Sketchbook  |  blend " << settings.shape_blend
+    title << "Shader Sketchbook  |  lesson " << (lesson_index + 1) << "/" << shader_sketchbook::lesson_count()
+          << "  " << lesson.title
+          << "  |  blend " << std::fixed << std::setprecision(2) << settings.shape_blend
           << "  radius " << settings.sphere_radius
           << "  repeat " << settings.repeat
           << "  light " << settings.light_energy;
@@ -61,6 +67,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         case 'E': settings.repeat = std::max(0.80F, settings.repeat - 0.10F); break;
         case 'Z': settings.light_energy = std::max(0.0F, settings.light_energy - 0.05F); break;
         case 'X': settings.light_energy = std::min(2.5F, settings.light_energy + 0.05F); break;
+        case VK_LEFT:
+        case VK_OEM_COMMA:
+            renderer.cycle_lesson(-1);
+            break;
+        case VK_RIGHT:
+        case VK_OEM_PERIOD:
+            renderer.cycle_lesson(1);
+            break;
         case 'R': renderer.reload_shaders(); break;
         case VK_SPACE: paused = !paused; break;
         case VK_ESCAPE: window.close(); break;
@@ -78,12 +92,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         renderer.render(settings, paused ? 0.0F : elapsed);
         renderer.present();
         if (now - last_title > std::chrono::milliseconds(250)) {
-            window.set_title(make_title(settings, paused, renderer.status()));
+            window.set_title(make_title(settings, renderer.current_lesson(), renderer.lesson_index(), paused, renderer.status()));
             last_title = now;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     return 0;
 }
-
-
