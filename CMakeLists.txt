@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.20)
 
-project(shader_sketchbook VERSION 0.1.0 LANGUAGES CXX)
+project(shader_sketchbook VERSION 0.2.0 LANGUAGES CXX)
 
 option(SHADER_SKETCHBOOK_BUILD_TESTS "Build deterministic core and reference tests" ON)
 
@@ -11,6 +11,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_library(sketchbook_core STATIC
     src/core/image.cpp
+    src/core/lesson_catalog.cpp
     src/core/sdf_scene.cpp
 )
 
@@ -33,8 +34,14 @@ if(SHADER_SKETCHBOOK_BUILD_TESTS)
     target_compile_definitions(sketchbook_reference_tests PRIVATE
         SKETCHBOOK_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 
+    add_executable(sketchbook_lesson_tests tests/test_lesson_catalog.cpp)
+    target_link_libraries(sketchbook_lesson_tests PRIVATE sketchbook_core)
+    target_compile_definitions(sketchbook_lesson_tests PRIVATE
+        SKETCHBOOK_LESSON_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders/lessons")
+
     add_test(NAME sdf_core COMMAND sketchbook_sdf_tests)
     add_test(NAME reference_image COMMAND sketchbook_reference_tests)
+    add_test(NAME lesson_catalog COMMAND sketchbook_lesson_tests)
 endif()
 
 if(WIN32)
@@ -47,7 +54,7 @@ if(WIN32)
     target_include_directories(shader_sketchbook PRIVATE src/demo include)
     target_compile_definitions(shader_sketchbook PRIVATE
         SKETCHBOOK_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders")
-    target_link_libraries(shader_sketchbook PRIVATE opengl32 user32 gdi32)
+    target_link_libraries(shader_sketchbook PRIVATE opengl32 user32 gdi32 sketchbook_core)
     if(MSVC)
         target_compile_options(shader_sketchbook PRIVATE /W4 /permissive-)
     else()
@@ -61,4 +68,3 @@ endif()
 set_target_properties(sketchbook_core PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES)
-

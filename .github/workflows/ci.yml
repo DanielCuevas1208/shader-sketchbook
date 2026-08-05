@@ -15,7 +15,17 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
       - name: Configure
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+        shell: pwsh
+        run: |
+          $generators = @(
+            'Visual Studio 18 2026',
+            'Visual Studio 17 2022'
+          )
+          foreach ($generator in $generators) {
+            cmake -S . -B build -G $generator -A x64
+            if ($LASTEXITCODE -eq 0) { break }
+          }
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Test

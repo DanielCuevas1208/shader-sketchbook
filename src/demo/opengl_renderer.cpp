@@ -1,7 +1,5 @@
 ﻿#include "opengl_renderer.hpp"
 
-#include <iostream>
-
 namespace shader_sketchbook::demo {
 
 OpenGLRenderer::~OpenGLRenderer() {
@@ -42,9 +40,21 @@ bool OpenGLRenderer::create_context(HWND window) {
     return true;
 }
 
+bool OpenGLRenderer::load_current_lesson() {
+    const LessonInfo& lesson = lesson_at(lesson_index_);
+    const bool loaded = shaders_.load(lesson_directory_ / "fullscreen.vert",
+                                      lesson_directory_ / lesson.fragment_shader);
+    if (!loaded) {
+        status_ = shaders_.last_error();
+        return false;
+    }
+    status_ = std::string("lesson: ") + lesson.title;
+    return true;
+}
+
 bool OpenGLRenderer::initialize(HWND window, const std::filesystem::path& shader_directory) {
     window_ = window;
-    shader_directory_ = shader_directory;
+    lesson_directory_ = shader_directory / "lessons";
     if (!create_context(window_)) {
         return false;
     }
@@ -53,12 +63,9 @@ bool OpenGLRenderer::initialize(HWND window, const std::filesystem::path& shader
     glClearColor(0.015F, 0.02F, 0.05F, 1.0F);
     resize(1, 1);
 
-    const bool loaded = shaders_.load(shader_directory_ / "scene.vert", shader_directory_ / "scene.frag");
-    if (!loaded) {
-        status_ = shaders_.last_error();
+    if (!load_current_lesson()) {
         return false;
     }
-    status_ = "live shader";
     return true;
 }
 
@@ -89,7 +96,7 @@ void OpenGLRenderer::render(const SceneSettings& settings, float time_seconds) {
         return;
     }
     if (shaders_.reload_if_changed()) {
-        status_ = "live shader, reloaded";
+        status_ = std::string("lesson: ") + current_lesson().title + ", reloaded";
     }
 
     glClear(GL_COLOR_BUFFER_BIT);
@@ -128,8 +135,17 @@ void OpenGLRenderer::render(const SceneSettings& settings, float time_seconds) {
 
 bool OpenGLRenderer::reload_shaders() {
     const bool loaded = shaders_.force_reload();
-    status_ = loaded ? "live shader, reloaded" : shaders_.last_error();
+    status_ = loaded ? std::string("lesson: ") + current_lesson().title + ", reloaded" : shaders_.last_error();
     return loaded;
+}
+
+bool OpenGLRenderer::select_lesson(std::size_t index) {
+    lesson_index_ = index % lesson_count();
+    return load_current_lesson();
+}
+
+bool OpenGLRenderer::cycle_lesson(int delta) {
+    return select_lesson(wrap_lesson_index(static_cast<int>(lesson_index_) + delta));
 }
 
 void OpenGLRenderer::present() noexcept {
