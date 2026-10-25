@@ -5,7 +5,7 @@
             "name": "default",
             "displayName": "Default",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
+            "binaryDir": "${sourceDir}/build-default",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "SHADER_SKETCHBOOK_BUILD_TESTS": "ON"

@@ -1,5 +1,9 @@
 ﻿#include "shader_program.hpp"
 
+#ifndef _WIN32
+#include <GL/glx.h>
+#endif
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -10,14 +14,24 @@
 namespace shader_sketchbook::demo {
 namespace {
 
+shader_sketchbook::ShaderStage stage_for_type(GLenum type) {
+    return type == GL_VERTEX_SHADER ? shader_sketchbook::ShaderStage::Vertex
+                                    : shader_sketchbook::ShaderStage::Fragment;
+}
+
 template <typename Function>
 Function load_function(const char* name) {
+#ifdef _WIN32
     PROC address = wglGetProcAddress(name);
     if (address == nullptr) {
         const HMODULE opengl = GetModuleHandleA("opengl32.dll");
         address = GetProcAddress(opengl, name);
     }
     return reinterpret_cast<Function>(address);
+#else
+    const auto address = glXGetProcAddressARB(reinterpret_cast<const GLubyte*>(name));
+    return reinterpret_cast<Function>(address);
+#endif
 }
 
 bool file_timestamp(const std::filesystem::path& path, std::filesystem::file_time_type& result) {
@@ -54,14 +68,17 @@ bool GlApi::load() {
 }
 
 GLuint ShaderProgram::compile(GLenum type, const std::filesystem::path& path, std::string& error) const {
+    const shader_sketchbook::ShaderStage stage = stage_for_type(type);
     std::ifstream file(path);
     if (!file) {
-        error = "Could not open shader: " + path.string();
+        error = shader_sketchbook::format_shader_diagnostic(
+            shader_sketchbook::parse_shader_diagnostic(stage, path, "could not open shader"));
         return 0;
     }
     const std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     if (source.empty()) {
-        error = "Shader is empty: " + path.string();
+        error = shader_sketchbook::format_shader_diagnostic(
+            shader_sketchbook::parse_shader_diagnostic(stage, path, "shader is empty"));
         return 0;
     }
 
@@ -78,7 +95,8 @@ GLuint ShaderProgram::compile(GLenum type, const std::filesystem::path& path, st
         std::vector<char> log(static_cast<std::size_t>(std::max(log_length, 1)));
         GLsizei written = 0;
         api_.get_shader_info_log(shader, static_cast<GLsizei>(log.size()), &written, log.data());
-        error = path.string() + ": " + std::string(log.data(), static_cast<std::size_t>(std::max(written, 0)));
+        error = shader_sketchbook::format_shader_diagnostic(shader_sketchbook::parse_shader_diagnostic(
+            stage, path, std::string_view(log.data(), static_cast<std::size_t>(std::max(written, 0)))));
         api_.delete_shader(shader);
         return 0;
     }
@@ -123,7 +141,10 @@ bool ShaderProgram::load(const std::filesystem::path& vertex_path, const std::fi
     GLint linked = GL_FALSE;
     api_.get_program_iv(candidate, GL_LINK_STATUS, &linked);
     if (linked == GL_FALSE) {
-        last_error_ = program_log(candidate);
+        last_error_ = shader_sketchbook::format_shader_diagnostic(
+            shader_sketchbook::parse_shader_diagnostic(shader_sketchbook::ShaderStage::Program,
+                                                        fragment_path,
+                                                        program_log(candidate)));
         api_.delete_program(candidate);
         std::cerr << "shader: " << last_error_ << '\n';
         return false;
