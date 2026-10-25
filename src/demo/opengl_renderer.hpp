@@ -20,6 +20,7 @@ public:
     void shutdown() noexcept;
     void resize(int width, int height) noexcept;
     void render(const SceneSettings& settings, float time_seconds);
+    bool capture_frame(const std::filesystem::path& path);
     bool reload_shaders();
     bool select_lesson(std::size_t index);
     bool cycle_lesson(int delta);

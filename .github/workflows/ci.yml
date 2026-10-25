@@ -3,6 +3,7 @@
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,19 +18,34 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          $generators = @(
-            'Visual Studio 18 2026',
-            'Visual Studio 17 2022'
+          $candidates = @(
+            @{ Generator = 'Visual Studio 18 2026'; Directory = 'build-vs18' },
+            @{ Generator = 'Visual Studio 17 2022'; Directory = 'build-vs17' },
+            @{ Generator = 'Visual Studio 16 2019'; Directory = 'build-vs16' }
           )
-          foreach ($generator in $generators) {
-            cmake -S . -B build -G $generator -A x64
-            if ($LASTEXITCODE -eq 0) { break }
+          $buildDirectory = $null
+          foreach ($candidate in $candidates) {
+            cmake -S . -B $candidate.Directory -G $candidate.Generator -A x64
+            if ($LASTEXITCODE -eq 0) {
+              $buildDirectory = $candidate.Directory
+              break
+            }
           }
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if ($null -eq $buildDirectory) { exit 1 }
+          "BUILD_DIRECTORY=$buildDirectory" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build $env:BUILD_DIRECTORY --config Release --parallel 1
       - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir $env:BUILD_DIRECTORY -C Release --output-on-failure
+      - name: Upload GPU evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shader-sketchbook-gpu-capture
+          path: |
+            ${{ env.BUILD_DIRECTORY }}/gpu_capture.ppm
+            tests/fixtures/gpu_composite_reference.ppm
+          if-no-files-found: ignore
 
   ubuntu:
     name: Ubuntu portable tests
@@ -37,9 +53,13 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+      - name: Install portable host headers
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libgl1-mesa-dev libglx-dev libx11-dev
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build-linux -DCMAKE_BUILD_TYPE=Release
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build build-linux --parallel
+      - name: Check the X11 host target
+        run: cmake --build build-linux --target shader_sketchbook_x11 --parallel
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build-linux --output-on-failure

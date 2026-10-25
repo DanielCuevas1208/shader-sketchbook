@@ -1,4 +1,4 @@
-﻿build/
+build*/
 out/
 *.dir/
 CMakeFiles/
@@ -31,6 +31,4 @@ coverage/
 *.gcno
 *.gcov
 
-build-vs/
-build-ci/
-build-release/
+gpu_capture.ppm

@@ -3,8 +3,15 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#ifdef _WIN32
 #include <windows.h>
 #include <GL/gl.h>
+#else
+#include <GL/gl.h>
+#ifndef APIENTRY
+#define APIENTRY
+#endif
+#endif
 
 #ifndef GL_VERTEX_SHADER
 #define GL_VERTEX_SHADER 0x8B31
@@ -13,6 +20,8 @@
 #define GL_LINK_STATUS 0x8B82
 #define GL_INFO_LOG_LENGTH 0x8B84
 #endif
+
+#include "shader_sketchbook/shader_diagnostic.hpp"
 
 #include <filesystem>
 #include <string>
@@ -68,6 +77,7 @@ public:
     void destroy() noexcept;
     void bind() const noexcept;
     GLint uniform(const char* name) const noexcept;
+    bool valid() const noexcept { return program_ != 0; }
     const std::string& last_error() const noexcept { return last_error_; }
 
 private:

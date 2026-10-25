@@ -1,5 +1,10 @@
 ﻿#include "opengl_renderer.hpp"
 
+#include <cstdint>
+#include <exception>
+#include <system_error>
+#include <vector>
+
 namespace shader_sketchbook::demo {
 
 OpenGLRenderer::~OpenGLRenderer() {
@@ -133,6 +138,51 @@ void OpenGLRenderer::render(const SceneSettings& settings, float time_seconds) {
     glEnd();
 }
 
+bool OpenGLRenderer::capture_frame(const std::filesystem::path& path) {
+    if (context_ == nullptr) {
+        status_ = "capture unavailable";
+        return false;
+    }
+
+    try {
+        const std::filesystem::path parent = path.parent_path();
+        if (!parent.empty()) {
+            std::error_code error;
+            std::filesystem::create_directories(parent, error);
+            if (error) {
+                status_ = "capture directory failed: " + error.message();
+                return false;
+            }
+        }
+
+        const std::size_t pixel_count = static_cast<std::size_t>(width_) * static_cast<std::size_t>(height_);
+        std::vector<std::uint8_t> rgba(pixel_count * 4U);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glReadPixels(0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+        if (glGetError() != GL_NO_ERROR) {
+            status_ = "capture readback failed";
+            return false;
+        }
+
+        Image image(width_, height_);
+        for (int y = 0; y < height_; ++y) {
+            const int source_y = height_ - 1 - y;
+            for (int x = 0; x < width_; ++x) {
+                const std::size_t source =
+                    (static_cast<std::size_t>(source_y) * static_cast<std::size_t>(width_) +
+                     static_cast<std::size_t>(x)) * 4U;
+                image.at(x, y) = {rgba[source], rgba[source + 1U], rgba[source + 2U], 255};
+            }
+        }
+        image.save_ppm(path);
+        status_ = "capture: " + path.string();
+        return true;
+    } catch (const std::exception& error) {
+        status_ = "capture failed: " + std::string(error.what());
+        return false;
+    }
+}
+
 bool OpenGLRenderer::reload_shaders() {
     const bool loaded = shaders_.force_reload();
     status_ = loaded ? std::string("lesson: ") + current_lesson().title + ", reloaded" : shaders_.last_error();
@@ -140,8 +190,13 @@ bool OpenGLRenderer::reload_shaders() {
 }
 
 bool OpenGLRenderer::select_lesson(std::size_t index) {
+    const std::size_t previous_index = lesson_index_;
     lesson_index_ = index % lesson_count();
-    return load_current_lesson();
+    if (load_current_lesson()) {
+        return true;
+    }
+    lesson_index_ = previous_index;
+    return false;
 }
 
 bool OpenGLRenderer::cycle_lesson(int delta) {
